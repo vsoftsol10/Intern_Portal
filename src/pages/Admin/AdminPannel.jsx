@@ -1,27 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, X, Save, UserPlus, ClipboardList } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, UserPlus, ClipboardList, Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
 
 const API_URL = 'http://localhost:5000/api/interns';
-    const InternAdminPortal = () => {
-  const [interns, setInterns] = useState([]);
-  const [tasks, setTasks] = useState([
-    { id: 1, internId: null, title: 'Complete onboarding', description: 'Finish all onboarding modules', deadline: '2024-11-20', status: 'In Progress' },
-    { id: 2, internId: null, title: 'Design mockups', description: 'Create UI mockups for new feature', deadline: '2024-11-25', status: 'Pending' }
-  ]);
+const TASK_API_URL = 'http://localhost:5000/api/tasks';
 
+const InternAdminPortal = () => {
+  const [interns, setInterns] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [activeTab, setActiveTab] = useState('interns');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   const [editingIntern, setEditingIntern] = useState(null);
-  const [formData, setFormData] = useState({ name: '', email: '', department: '', startDate: '', status: 'Active' });
-  const [taskFormData, setTaskFormData] = useState({ internId: '', title: '', description: '', deadline: '', status: 'Pending' });
+  const [editingTask, setEditingTask] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [formData, setFormData] = useState({ 
+    name: '', 
+    email: '', 
+    password: '', 
+    department: '', 
+    startDate: '', 
+    status: 'Active' 
+  });
+  const [taskFormData, setTaskFormData] = useState({ 
+    internId: '', 
+    title: '', 
+    description: '', 
+    deadline: '', 
+    status: 'Acknowledge',
+    reason: ''
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch interns from API on component mount
   useEffect(() => {
     fetchInterns();
+    fetchTasks();
   }, []);
 
   const fetchInterns = async () => {
@@ -38,10 +52,19 @@ const API_URL = 'http://localhost:5000/api/interns';
     }
   };
 
-  // Intern CRUD Operations
+  const fetchTasks = async () => {
+    try {
+      const response = await axios.get(TASK_API_URL);
+      setTasks(response.data);
+    } catch (err) {
+      console.error('Error fetching tasks:', err);
+    }
+  };
+
   const handleAddIntern = () => {
     setEditingIntern(null);
-    setFormData({ name: '', email: '', department: '', startDate: '', status: 'Active' });
+    setFormData({ name: '', email: '', password: '', department: '', startDate: '', status: 'Active' });
+    setShowPassword(false);
     setIsModalOpen(true);
   };
 
@@ -50,10 +73,12 @@ const API_URL = 'http://localhost:5000/api/interns';
     setFormData({
       name: intern.name,
       email: intern.email,
+      password: '',
       department: intern.department,
       startDate: intern.startDate,
       status: intern.status
     });
+    setShowPassword(false);
     setIsModalOpen(true);
   };
 
@@ -61,8 +86,8 @@ const API_URL = 'http://localhost:5000/api/interns';
     if (window.confirm('Are you sure you want to delete this intern?')) {
       try {
         await axios.delete(`${API_URL}/${id}`);
-        setInterns(interns.filter(i => i._id !== id));
-        setTasks(tasks.filter(t => t.internId !== id));
+        await fetchInterns();
+        await fetchTasks();
         setError(null);
       } catch (err) {
         setError(err.response?.data?.error || err.message);
@@ -73,21 +98,26 @@ const API_URL = 'http://localhost:5000/api/interns';
 
   const handleSaveIntern = async () => {
     if (!formData.name || !formData.email || !formData.department || !formData.startDate) {
-      alert('Please fill in all fields');
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    if (!editingIntern && !formData.password) {
+      alert('Password is required for new interns');
       return;
     }
 
     try {
       if (editingIntern) {
-        // Update existing intern
-        const response = await axios.put(`${API_URL}/${editingIntern._id}`, formData);
-        setInterns(interns.map(i => i._id === editingIntern._id ? response.data : i));
+        const updateData = { ...formData };
+        if (!updateData.password) {
+          delete updateData.password;
+        }
+        await axios.put(`${API_URL}/${editingIntern._id}`, updateData);
       } else {
-        // Add new intern
-        const response = await axios.post(API_URL, formData);
-        setInterns([...interns, response.data]);
+        await axios.post(API_URL, formData);
       }
-      
+      await fetchInterns();
       setIsModalOpen(false);
       setError(null);
     } catch (err) {
@@ -96,29 +126,67 @@ const API_URL = 'http://localhost:5000/api/interns';
     }
   };
 
-  // Task Operations
   const handleAddTask = () => {
-    setTaskFormData({ internId: '', title: '', description: '', deadline: '', status: 'Pending' });
+    setEditingTask(null);
+    setTaskFormData({ internId: '', title: '', description: '', deadline: '', status: 'Acknowledge', reason: '' });
     setIsTaskModalOpen(true);
   };
 
-  const handleSaveTask = () => {
+  const handleEditTask = (task) => {
+    setEditingTask(task);
+    setTaskFormData({
+      internId: task.internId?._id || task.internId,
+      title: task.title,
+      description: task.description,
+      deadline: task.deadline,
+      status: task.status,
+      reason: task.reason || ''
+    });
+    setIsTaskModalOpen(true);
+  };
+
+  const handleSaveTask = async () => {
     if (!taskFormData.internId || !taskFormData.title || !taskFormData.deadline) {
       alert('Please fill in all required fields');
       return;
     }
 
-    setTasks([...tasks, { ...taskFormData, id: Date.now() }]);
-    setIsTaskModalOpen(false);
+    try {
+      if (editingTask) {
+        await axios.patch(`${TASK_API_URL}/${editingTask._id}`, {
+          status: taskFormData.status,
+          reason: taskFormData.reason
+        });
+      } else {
+        await axios.post(TASK_API_URL, taskFormData);
+      }
+      await fetchTasks();
+      setIsTaskModalOpen(false);
+    } catch (err) {
+      alert('Error saving task: ' + (err.response?.data?.error || err.message));
+    }
   };
 
-  const handleDeleteTask = (id) => {
+  const handleDeleteTask = async (id) => {
     if (window.confirm('Are you sure you want to delete this task?')) {
-      setTasks(tasks.filter(t => t.id !== id));
+      try {
+        await axios.delete(`${TASK_API_URL}/${id}`);
+        await fetchTasks();
+      } catch (err) {
+        alert('Error deleting task: ' + (err.response?.data?.error || err.message));
+      }
     }
   };
 
   const getInternName = (internId) => {
+    if (!internId) return 'Unknown';
+    
+    // Handle if internId is an object (populated)
+    if (typeof internId === 'object' && internId.name) {
+      return internId.name;
+    }
+    
+    // Handle if internId is a string (not populated)
     const intern = interns.find(i => i._id === internId);
     return intern ? intern.name : 'Unknown';
   };
@@ -266,29 +334,47 @@ const API_URL = 'http://localhost:5000/api/interns';
             ) : (
               <div className="grid gap-4">
                 {tasks.map((task) => (
-                  <div key={task.id} className="bg-gray-800 border border-yellow-600 rounded-lg p-4 hover:shadow-lg transition-all">
+                  <div key={task._id} className="bg-gray-800 border border-yellow-600 rounded-lg p-4 hover:shadow-lg transition-all">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <h3 className="text-lg font-semibold text-yellow-500">{task.title}</h3>
                         <p className="text-gray-300 mt-1">{task.description}</p>
-                        <div className="flex gap-4 mt-3 text-sm">
-                          <span className="text-gray-400">Assigned to: <span className="text-yellow-500 font-semibold">{getInternName(task.internId)}</span></span>
-                          <span className="text-gray-400">Deadline: <span className="text-yellow-500 font-semibold">{task.deadline}</span></span>
+                        <div className="flex flex-wrap gap-4 mt-3 text-sm">
+                          <span className="text-gray-400">
+                            Assigned to: <span className="text-yellow-500 font-semibold">{getInternName(task.internId)}</span>
+                          </span>
+                          <span className="text-gray-400">
+                            Deadline: <span className="text-yellow-500 font-semibold">{task.deadline}</span>
+                          </span>
                           <span className={`px-2 py-1 rounded text-xs font-semibold ${
                             task.status === 'Completed' ? 'bg-green-600 text-white' :
                             task.status === 'In Progress' ? 'bg-yellow-600 text-black' :
+                            task.status === 'Blocked' ? 'bg-red-600 text-white' :
                             'bg-gray-700 text-gray-300'
                           }`}>
                             {task.status}
                           </span>
                         </div>
+                        {task.reason && (
+                          <div className="mt-2 text-sm text-gray-400">
+                            <span className="font-semibold">Reason:</span> {task.reason}
+                          </div>
+                        )}
                       </div>
-                      <button
-                        onClick={() => handleDeleteTask(task.id)}
-                        className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all ml-4"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      <div className="flex gap-2 ml-4">
+                        <button
+                          onClick={() => handleEditTask(task)}
+                          className="p-2 bg-yellow-600 hover:bg-yellow-700 text-black rounded-lg transition-all"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTask(task._id)}
+                          className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-all"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -331,6 +417,28 @@ const API_URL = 'http://localhost:5000/api/interns';
                     className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
                     placeholder="Enter email address"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-yellow-500 font-semibold mb-2">
+                    Password {editingIntern && <span className="text-sm text-gray-400">(leave blank to keep current)</span>}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      className="w-full px-4 py-2 pr-12 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
+                      placeholder={editingIntern ? "Leave blank to keep current password" : "Create a password"}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-yellow-500"
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
                 </div>
 
                 <div>
@@ -383,58 +491,71 @@ const API_URL = 'http://localhost:5000/api/interns';
           <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
             <div className="bg-gray-900 rounded-lg shadow-2xl max-w-md w-full p-6 border-2 border-yellow-500">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-2xl font-bold text-yellow-500">Assign New Task</h3>
+                <h3 className="text-2xl font-bold text-yellow-500">
+                  {editingTask ? 'Edit Task Status' : 'Assign New Task'}
+                </h3>
                 <button onClick={() => setIsTaskModalOpen(false)} className="text-gray-400 hover:text-yellow-500">
                   <X size={24} />
                 </button>
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <label className="block text-yellow-500 font-semibold mb-2">Assign to Intern</label>
-                  <select
-                    value={taskFormData.internId}
-                    onChange={(e) => setTaskFormData({ ...taskFormData, internId: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
-                  >
-                    <option value="">Select an intern</option>
-                    {interns.map((intern) => (
-                      <option key={intern._id} value={intern._id}>{intern.name}</option>
-                    ))}
-                  </select>
-                </div>
+                {!editingTask && (
+                  <>
+                    <div>
+                      <label className="block text-yellow-500 font-semibold mb-2">Assign to Intern</label>
+                      <select
+                        value={taskFormData.internId}
+                        onChange={(e) => setTaskFormData({ ...taskFormData, internId: e.target.value })}
+                        className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
+                      >
+                        <option value="">Select an intern</option>
+                        {interns.map((intern) => (
+                          <option key={intern._id} value={intern._id}>{intern.name}</option>
+                        ))}
+                      </select>
+                    </div>
 
-                <div>
-                  <label className="block text-yellow-500 font-semibold mb-2">Task Title</label>
-                  <input
-                    type="text"
-                    value={taskFormData.title}
-                    onChange={(e) => setTaskFormData({ ...taskFormData, title: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
-                    placeholder="Enter task title"
-                  />
-                </div>
+                    <div>
+                      <label className="block text-yellow-500 font-semibold mb-2">Task Title</label>
+                      <input
+                        type="text"
+                        value={taskFormData.title}
+                        onChange={(e) => setTaskFormData({ ...taskFormData, title: e.target.value })}
+                        className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
+                        placeholder="Enter task title"
+                      />
+                    </div>
 
-                <div>
-                  <label className="block text-yellow-500 font-semibold mb-2">Description</label>
-                  <textarea
-                    value={taskFormData.description}
-                    onChange={(e) => setTaskFormData({ ...taskFormData, description: e.target.value })}
-                    rows="3"
-                    className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
-                    placeholder="Enter task description"
-                  />
-                </div>
+                    <div>
+                      <label className="block text-yellow-500 font-semibold mb-2">Description</label>
+                      <textarea
+                        value={taskFormData.description}
+                        onChange={(e) => setTaskFormData({ ...taskFormData, description: e.target.value })}
+                        rows="3"
+                        className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
+                        placeholder="Enter task description"
+                      />
+                    </div>
 
-                <div>
-                  <label className="block text-yellow-500 font-semibold mb-2">Deadline</label>
-                  <input
-                    type="date"
-                    value={taskFormData.deadline}
-                    onChange={(e) => setTaskFormData({ ...taskFormData, deadline: e.target.value })}
-                    className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
-                  />
-                </div>
+                    <div>
+                      <label className="block text-yellow-500 font-semibold mb-2">Deadline</label>
+                      <input
+                        type="date"
+                        value={taskFormData.deadline}
+                        onChange={(e) => setTaskFormData({ ...taskFormData, deadline: e.target.value })}
+                        className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {editingTask && (
+                  <div className="mb-4 p-3 bg-gray-800 rounded-lg">
+                    <p className="text-yellow-500 font-semibold">{editingTask.title}</p>
+                    <p className="text-gray-400 text-sm mt-1">Assigned to: {getInternName(editingTask.internId)}</p>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-yellow-500 font-semibold mb-2">Status</label>
@@ -443,18 +564,35 @@ const API_URL = 'http://localhost:5000/api/interns';
                     onChange={(e) => setTaskFormData({ ...taskFormData, status: e.target.value })}
                     className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
                   >
+                    <option value="Acknowledge">Acknowledge</option>
                     <option value="Pending">Pending</option>
                     <option value="In Progress">In Progress</option>
                     <option value="Completed">Completed</option>
+                    <option value="Blocked">Blocked</option>
                   </select>
                 </div>
+
+                {(taskFormData.status === 'Pending' || taskFormData.status === 'In Progress' || taskFormData.status === 'Blocked') && (
+                  <div>
+                    <label className="block text-yellow-500 font-semibold mb-2">
+                      Reason {taskFormData.status === 'Blocked' ? '(Required)' : '(Optional)'}
+                    </label>
+                    <textarea
+                      value={taskFormData.reason}
+                      onChange={(e) => setTaskFormData({ ...taskFormData, reason: e.target.value })}
+                      rows="3"
+                      className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
+                      placeholder="Explain the status or reason..."
+                    />
+                  </div>
+                )}
 
                 <button
                   onClick={handleSaveTask}
                   className="w-full flex items-center justify-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-3 rounded-lg font-semibold transition-all"
                 >
                   <Save size={20} />
-                  Assign Task
+                  {editingTask ? 'Update Task' : 'Assign Task'}
                 </button>
               </div>
             </div>
