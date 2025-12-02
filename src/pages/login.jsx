@@ -131,11 +131,11 @@ const Login = ({ onLoginSuccess }) => {
       <div className="relative w-full max-w-md">
         <div className="bg-black bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-2xl border border-yellow-500 border-opacity-20 p-8">
           <div className="text-center mb-8">
-            <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow mb-4 mx-auto">
+            <div className="w-30 h-30 bg-white rounded-full flex items-center justify-center shadow mb-4 mx-auto">
               <img
                 src={myLogo}
                 alt="Logo"
-                className="w-12 h-12 object-contain"
+                className="w-22 h-22 object-contain"
               />
             </div>
 
@@ -155,7 +155,7 @@ const Login = ({ onLoginSuccess }) => {
               <label className="block text-yellow-400 text-sm font-medium mb-2">Email</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <User className={`w-5 h-5 transition-colors ${focusedField === 'email' ? 'text-yellow-400' : 'text-gray-500'}`} />
+                  <User className={`w-5 h-5 transition-colors ${focusedField === 'email' ? 'text-yellow-400' : 'text-yellow-500'}`} />
                 </div>
                 <input
                   type="email"
@@ -164,7 +164,7 @@ const Login = ({ onLoginSuccess }) => {
                   onFocus={() => setFocusedField('email')}
                   onBlur={() => setFocusedField(null)}
                   onKeyPress={handleKeyPress}
-                  className="w-full pl-12 pr-4 py-3 bg-gray-900 border-2 border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none transition-all duration-300"
+                  className="w-full pl-12 pr-4 py-3 bg-gray-900 border-2 border-yellow-700 rounded-lg text-white placeholder-white-500 focus:border-yellow-500 focus:outline-none transition-all duration-300"
                   placeholder="Enter your email"
                   disabled={loading}
                 />
@@ -175,7 +175,7 @@ const Login = ({ onLoginSuccess }) => {
               <label className="block text-yellow-400 text-sm font-medium mb-2">Password</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Lock className={`w-5 h-5 transition-colors ${focusedField === 'password' ? 'text-yellow-400' : 'text-gray-500'}`} />
+                  <Lock className={`w-5 h-5 transition-colors ${focusedField === 'password' ? 'text-yellow-400' : 'text-yellow-500'}`} />
                 </div>
                 <input
                   type="password"
@@ -184,7 +184,7 @@ const Login = ({ onLoginSuccess }) => {
                   onFocus={() => setFocusedField('password')}
                   onBlur={() => setFocusedField(null)}
                   onKeyPress={handleKeyPress}
-                  className="w-full pl-12 pr-4 py-3 bg-gray-900 border-2 border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-yellow-500 focus:outline-none transition-all duration-300"
+                  className="w-full pl-12 pr-4 py-3 bg-gray-900 border-2 border-yellow-700 rounded-lg text-white placeholder-white-500 focus:border-yellow-500 focus:outline-none transition-all duration-300"
                   placeholder="Enter your password"
                   disabled={loading}
                 />
