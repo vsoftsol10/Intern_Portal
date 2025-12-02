@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, Clock, XCircle, PlayCircle, Calendar, AlertCircle, RefreshCw } from 'lucide-react';
 
-const API_URL = 'http://localhost:5000/api/interns';
+const API_URL = 'https://internship-backend-upmj.onrender.com/api/interns';
 
 const Dashboard = () => {
   const [tasks, setTasks] = useState([]);

@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, X, Save, UserPlus, ClipboardList, Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000/api/interns';
-const TASK_API_URL = 'http://localhost:5000/api/tasks';
+const API_URL = 'https://internship-backend-upmj.onrender.com/api/interns';
+const TASK_API_URL = 'https://internship-backend-upmj.onrender.com/api/tasks';
 
 const InternAdminPortal = () => {
   const [interns, setInterns] = useState([]);

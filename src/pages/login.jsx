@@ -1,28 +1,60 @@
-import React, { useState } from 'react';
-import { User, Lock, ArrowRight, AlertCircle, CheckCircle, Clock, XCircle, PlayCircle, Calendar, RefreshCw, LogOut } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Lock, ArrowRight, AlertCircle, CheckCircle, Clock, XCircle, PlayCircle, Calendar, LogOut } from 'lucide-react';
 import myLogo from '../assets/Vsoft Logo.png';
 
-const API_URL = 'http://localhost:5000/api/interns';
+const API_URL = 'https://internship-backend-upmj.onrender.com/api/interns';
 
 const App = () => {
   const [currentUser, setCurrentUser] = useState(null);
-  const [view, setView] = useState('login'); // 'login' or 'dashboard'
+  const [view, setView] = useState('login');
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Check for saved session on mount
+  useEffect(() => {
+    const savedUser = localStorage.getItem('currentUser');
+    if (savedUser) {
+      try {
+        const user = JSON.parse(savedUser);
+        setCurrentUser(user);
+        setView('dashboard');
+      } catch (error) {
+        console.error('Error parsing saved user:', error);
+        localStorage.removeItem('currentUser');
+      }
+    }
+    setIsLoading(false);
+  }, []);
+
+  const handleLogin = (user) => {
+    setCurrentUser(user);
+    localStorage.setItem('currentUser', JSON.stringify(user));
+    setView('dashboard');
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('currentUser');
+    setView('login');
+  };
+
+  // Show loading screen while checking session
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-amber-100 flex items-center justify-center">
+        {/* <div className="text-center">
+          <RefreshCw className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Loading...</p>
+        </div> */}
+      </div>
+    );
+  }
 
   return (
     <div>
       {view === 'login' ? (
-        <Login onLoginSuccess={(user) => {
-          setCurrentUser(user);
-          setView('dashboard');
-        }} />
+        <Login onLoginSuccess={handleLogin} />
       ) : (
-        <Dashboard
-          currentUser={currentUser}
-          onLogout={() => {
-            setCurrentUser(null);
-            setView('login');
-          }}
-        />
+        <Dashboard currentUser={currentUser} onLogout={handleLogout} />
       )}
     </div>
   );
@@ -73,7 +105,7 @@ const Login = ({ onLoginSuccess }) => {
 
     } catch (err) {
       if (err.message.includes('Failed to fetch')) {
-        setError('Cannot connect to server. Please ensure the API is running on http://localhost:5000');
+        setError('Cannot connect to server. Please ensure the API is running.');
       } else {
         setError(err.message || 'Login failed. Please try again.');
       }
@@ -99,7 +131,6 @@ const Login = ({ onLoginSuccess }) => {
       <div className="relative w-full max-w-md">
         <div className="bg-black bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-2xl border border-yellow-500 border-opacity-20 p-8">
           <div className="text-center mb-8">
-
             <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow mb-4 mx-auto">
               <img
                 src={myLogo}
@@ -219,7 +250,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
     }
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (currentUser?.internId) {
       fetchTasks(currentUser.internId);
     }
@@ -229,8 +260,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
     setLoading(true);
     setError("");
     try {
-      // Fetch all tasks from the tasks API
-      const response = await fetch('http://localhost:5000/api/tasks');
+      const response = await fetch('https://internship-backend-upmj.onrender.com/api/tasks');
 
       if (!response.ok) {
         throw new Error('Failed to fetch tasks');
@@ -238,7 +268,6 @@ const Dashboard = ({ currentUser, onLogout }) => {
 
       const data = await response.json();
 
-      // Filter tasks for the current intern only
       let allTasks = [];
       if (Array.isArray(data)) {
         allTasks = data;
@@ -246,7 +275,6 @@ const Dashboard = ({ currentUser, onLogout }) => {
         allTasks = data.tasks;
       }
 
-      // Filter tasks assigned to this specific intern
       const internTasks = allTasks.filter(task =>
         task.internId === internId || task.internId?._id === internId
       );
@@ -263,8 +291,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
 
   const updateTaskInAPI = async (taskId, status, reason = "") => {
     try {
-      // Update task status in the tasks API
-      const response = await fetch(`http://localhost:5000/api/tasks/${taskId}`, {
+      const response = await fetch(`https://internship-backend-upmj.onrender.com/api/tasks/${taskId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -355,17 +382,17 @@ const Dashboard = ({ currentUser, onLogout }) => {
               <p className="text-gray-600 mt-1">Welcome, {currentUser?.name || currentUser?.email}</p>
             </div>
             <div className="flex gap-3">
-              <button
+              {/* <button
                 onClick={refreshTasks}
                 disabled={loading}
                 className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
               >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
-              </button>
+              </button> */}
               <button
                 onClick={onLogout}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-[#000] text-yellow-400 rounded-lg hover:bg-red-700 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
                 Logout
@@ -383,7 +410,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           {Object.entries(statusConfig).map(([status, config]) => {
             const count = tasks.filter(t => t.status === status).length;
             return (
@@ -404,7 +431,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
 
         {loading && tasks.length === 0 ? (
           <div className="text-center py-12">
-            <RefreshCw className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />
+            {/* <RefreshCw className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" /> */}
             <p className="text-gray-600">Loading tasks...</p>
           </div>
         ) : tasks.length === 0 ? (
@@ -429,7 +456,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
                         </div>
                         <div className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
-                          <span>Due: {formatDate(task.dueDate)}</span>
+                          <span>Due: {formatDate(task.deadline)}</span>
                         </div>
                         {task.priority && (
                           <div className="flex items-center gap-1">
@@ -448,7 +475,8 @@ const Dashboard = ({ currentUser, onLogout }) => {
                       <button
                         onClick={() => handleStatusUpdate(task)}
                         disabled={loading}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium disabled:opacity-50"
+                        className="px-4 py-2 bg-[#ffbe01] text-black rounded-lg hover:bg-[#e0a800] transition-colors text-sm font-medium disabled:opacity-50"
+
                       >
                         Update Status
                       </button>
@@ -513,7 +541,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
               <button
                 onClick={saveStatusUpdate}
                 disabled={loading}
-                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 px-4 py-2 bg-[#ffbe01] text-black rounded-lg hover:bg-[#e0a800] transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
