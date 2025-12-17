@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, X, Save, UserPlus, ClipboardList, Eye, EyeOff } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, UserPlus, ClipboardList, Eye, EyeOff, Download } from 'lucide-react';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 
 const API_URL = 'https://internship-backend-upmj.onrender.com/api/interns';
 const TASK_API_URL = 'https://internship-backend-upmj.onrender.com/api/tasks';
@@ -153,7 +154,11 @@ const InternAdminPortal = () => {
 
     try {
       if (editingTask) {
-        await axios.patch(`${TASK_API_URL}/${editingTask._id}`, {
+        await axios.put(`${TASK_API_URL}/${editingTask._id}`, {
+          internId: taskFormData.internId,
+          title: taskFormData.title,
+          description: taskFormData.description,
+          deadline: taskFormData.deadline,
           status: taskFormData.status,
           reason: taskFormData.reason
         });
@@ -180,15 +185,157 @@ const InternAdminPortal = () => {
 
   const getInternName = (internId) => {
     if (!internId) return 'Unknown';
-    
+
     // Handle if internId is an object (populated)
     if (typeof internId === 'object' && internId.name) {
       return internId.name;
     }
-    
+
     // Handle if internId is a string (not populated)
     const intern = interns.find(i => i._id === internId);
     return intern ? intern.name : 'Unknown';
+  };
+
+  const exportToExcel = () => {
+    // Get intern details for each task
+    const getInternDetails = (internId) => {
+      if (!internId) return { name: 'Unknown', department: 'N/A', startDate: 'N/A' };
+
+      // Handle if internId is an object (populated)
+      if (typeof internId === 'object' && internId.name) {
+        return {
+          name: internId.name,
+          department: internId.department || 'N/A',
+          startDate: internId.startDate || 'N/A'
+        };
+      }
+
+      // Handle if internId is a string (not populated)
+      const intern = interns.find(i => i._id === internId);
+      if (intern) {
+        return {
+          name: intern.name,
+          department: intern.department,
+          startDate: intern.startDate
+        };
+      }
+
+      return { name: 'Unknown', department: 'N/A', startDate: 'N/A' };
+    };
+
+    // Prepare comprehensive data for Excel export
+    const excelData = tasks.map(task => {
+      const internDetails = getInternDetails(task.internId);
+      const createdAt = task.createdAt ? new Date(task.createdAt) : null;
+      const updatedAt = task.updatedAt ? new Date(task.updatedAt) : null;
+      const deadline = task.deadline ? new Date(task.deadline) : null;
+
+      return {
+        'Task ID': task._id,
+        'Task Title': task.title,
+        'Task Description': task.description,
+        'Current Status': task.status,
+        'Status Reason': task.reason || 'N/A',
+        'Intern Name': internDetails.name,
+        'Intern Department': internDetails.department,
+        'Intern Start Date': internDetails.startDate,
+        'Task Deadline': deadline ? deadline.toLocaleDateString() : 'No deadline',
+        'Days Until Deadline': deadline ? Math.ceil((deadline - new Date()) / (1000 * 60 * 60 * 24)) : 'N/A',
+        'Task Created': createdAt ? createdAt.toLocaleDateString() + ' ' + createdAt.toLocaleTimeString() : 'N/A',
+        'Last Updated': updatedAt ? updatedAt.toLocaleDateString() + ' ' + updatedAt.toLocaleTimeString() : 'N/A',
+        'Days Since Creation': createdAt ? Math.floor((new Date() - createdAt) / (1000 * 60 * 60 * 24)) : 'N/A',
+        'Task Age (Days)': createdAt ? Math.floor((new Date() - createdAt) / (1000 * 60 * 60 * 24)) : 'N/A',
+        'Status Progress': getStatusProgress(task.status),
+        'Priority Level': calculatePriority(task.deadline, task.status)
+      };
+    });
+
+    // Sort data by creation date (most recent first)
+    excelData.sort((a, b) => {
+      const dateA = a['Task Created'] !== 'N/A' ? new Date(a['Task Created']) : new Date(0);
+      const dateB = b['Task Created'] !== 'N/A' ? new Date(b['Task Created']) : new Date(0);
+      return dateB - dateA;
+    });
+
+    // Create worksheet
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+    // Set column widths for better readability
+    const columnWidths = [
+      { wch: 25 }, // Task ID
+      { wch: 30 }, // Task Title
+      { wch: 40 }, // Task Description
+      { wch: 15 }, // Current Status
+      { wch: 25 }, // Status Reason
+      { wch: 20 }, // Intern Name
+      { wch: 20 }, // Intern Department
+      { wch: 15 }, // Intern Start Date
+      { wch: 15 }, // Task Deadline
+      { wch: 12 }, // Days Until Deadline
+      { wch: 20 }, // Task Created
+      { wch: 20 }, // Last Updated
+      { wch: 12 }, // Days Since Creation
+      { wch: 12 }, // Task Age (Days)
+      { wch: 15 }, // Status Progress
+      { wch: 12 }  // Priority Level
+    ];
+    worksheet['!cols'] = columnWidths;
+
+    // Add summary sheet with statistics
+    const summaryData = [
+      { 'Metric': 'Total Tasks', 'Value': tasks.length },
+      { 'Metric': 'Completed Tasks', 'Value': tasks.filter(t => t.status === 'Completed').length },
+      { 'Metric': 'In Progress Tasks', 'Value': tasks.filter(t => t.status === 'In Progress').length },
+      { 'Metric': 'Pending Tasks', 'Value': tasks.filter(t => t.status === 'Pending').length },
+      { 'Metric': 'Blocked Tasks', 'Value': tasks.filter(t => t.status === 'Blocked').length },
+      { 'Metric': 'Acknowledge Tasks', 'Value': tasks.filter(t => t.status === 'Acknowledge').length },
+      { 'Metric': 'Active Interns', 'Value': interns.filter(i => i.status === 'Active').length },
+      { 'Metric': 'Total Interns', 'Value': interns.length },
+      { 'Metric': 'Export Date', 'Value': new Date().toLocaleString() }
+    ];
+
+    const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData);
+    summaryWorksheet['!cols'] = [
+      { wch: 25 }, // Metric
+      { wch: 15 }  // Value
+    ];
+
+    // Create workbook and add worksheets
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Task History Details');
+    XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Summary Statistics');
+
+    // Generate filename with current date and time
+    const now = new Date();
+    const fileName = `Intern_Task_History_${now.toISOString().split('T')[0]}_${now.getHours()}${now.getMinutes()}.xlsx`;
+
+    // Save file
+    XLSX.writeFile(workbook, fileName);
+  };
+
+  // Helper function to get status progress indicator
+  const getStatusProgress = (status) => {
+    const progressMap = {
+      'Acknowledge': '0% - Not Started',
+      'Pending': '25% - Awaiting Action',
+      'In Progress': '50% - Active Work',
+      'Completed': '100% - Finished',
+      'Blocked': '0% - Issue Encountered'
+    };
+    return progressMap[status] || 'Unknown';
+  };
+
+  // Helper function to calculate priority based on deadline and status
+  const calculatePriority = (deadline, status) => {
+    if (status === 'Completed') return 'Completed';
+    if (!deadline) return 'No Deadline';
+
+    const daysUntilDeadline = Math.ceil((new Date(deadline) - new Date()) / (1000 * 60 * 60 * 24));
+
+    if (daysUntilDeadline < 0) return 'Overdue';
+    if (daysUntilDeadline <= 3) return 'High';
+    if (daysUntilDeadline <= 7) return 'Medium';
+    return 'Low';
   };
 
   return (
@@ -318,13 +465,23 @@ const InternAdminPortal = () => {
           <div className="bg-gray-900 rounded-lg shadow-2xl p-6">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-yellow-500">Task Assignment</h2>
-              <button
-                onClick={handleAddTask}
-                className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded-lg font-semibold transition-all"
-              >
-                <Plus size={20} />
-                Assign Task
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={exportToExcel}
+                  disabled={tasks.length === 0}
+                  className="flex items-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-semibold transition-all"
+                >
+                  <Download size={20} />
+                  Download Task History Excel
+                </button>
+                <button
+                  onClick={handleAddTask}
+                  className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded-lg font-semibold transition-all"
+                >
+                  <Plus size={20} />
+                  Assign Task
+                </button>
+              </div>
             </div>
 
             {tasks.length === 0 ? (
@@ -492,7 +649,7 @@ const InternAdminPortal = () => {
             <div className="bg-gray-900 rounded-lg shadow-2xl max-w-md w-full p-6 border-2 border-yellow-500">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-2xl font-bold text-yellow-500">
-                  {editingTask ? 'Edit Task Status' : 'Assign New Task'}
+                  {editingTask ? 'Edit Task' : 'Assign New Task'}
                 </h3>
                 <button onClick={() => setIsTaskModalOpen(false)} className="text-gray-400 hover:text-yellow-500">
                   <X size={24} />
@@ -500,62 +657,52 @@ const InternAdminPortal = () => {
               </div>
 
               <div className="space-y-4">
-                {!editingTask && (
-                  <>
-                    <div>
-                      <label className="block text-yellow-500 font-semibold mb-2">Assign to Intern</label>
-                      <select
-                        value={taskFormData.internId}
-                        onChange={(e) => setTaskFormData({ ...taskFormData, internId: e.target.value })}
-                        className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
-                      >
-                        <option value="">Select an intern</option>
-                        {interns.map((intern) => (
-                          <option key={intern._id} value={intern._id}>{intern.name}</option>
-                        ))}
-                      </select>
-                    </div>
+                {/* Always show editable fields for both creating and editing tasks */}
+                <div>
+                  <label className="block text-yellow-500 font-semibold mb-2">Assign to Intern</label>
+                  <select
+                    value={taskFormData.internId}
+                    onChange={(e) => setTaskFormData({ ...taskFormData, internId: e.target.value })}
+                    className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
+                  >
+                    <option value="">Select an intern</option>
+                    {interns.map((intern) => (
+                      <option key={intern._id} value={intern._id}>{intern.name}</option>
+                    ))}
+                  </select>
+                </div>
 
-                    <div>
-                      <label className="block text-yellow-500 font-semibold mb-2">Task Title</label>
-                      <input
-                        type="text"
-                        value={taskFormData.title}
-                        onChange={(e) => setTaskFormData({ ...taskFormData, title: e.target.value })}
-                        className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
-                        placeholder="Enter task title"
-                      />
-                    </div>
+                <div>
+                  <label className="block text-yellow-500 font-semibold mb-2">Task Title</label>
+                  <input
+                    type="text"
+                    value={taskFormData.title}
+                    onChange={(e) => setTaskFormData({ ...taskFormData, title: e.target.value })}
+                    className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
+                    placeholder="Enter task title"
+                  />
+                </div>
 
-                    <div>
-                      <label className="block text-yellow-500 font-semibold mb-2">Description</label>
-                      <textarea
-                        value={taskFormData.description}
-                        onChange={(e) => setTaskFormData({ ...taskFormData, description: e.target.value })}
-                        rows="3"
-                        className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
-                        placeholder="Enter task description"
-                      />
-                    </div>
+                <div>
+                  <label className="block text-yellow-500 font-semibold mb-2">Description</label>
+                  <textarea
+                    value={taskFormData.description}
+                    onChange={(e) => setTaskFormData({ ...taskFormData, description: e.target.value })}
+                    rows="3"
+                    className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
+                    placeholder="Enter task description"
+                  />
+                </div>
 
-                    <div>
-                      <label className="block text-yellow-500 font-semibold mb-2">Deadline</label>
-                      <input
-                        type="date"
-                        value={taskFormData.deadline}
-                        onChange={(e) => setTaskFormData({ ...taskFormData, deadline: e.target.value })}
-                        className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
-                      />
-                    </div>
-                  </>
-                )}
-
-                {editingTask && (
-                  <div className="mb-4 p-3 bg-gray-800 rounded-lg">
-                    <p className="text-yellow-500 font-semibold">{editingTask.title}</p>
-                    <p className="text-gray-400 text-sm mt-1">Assigned to: {getInternName(editingTask.internId)}</p>
-                  </div>
-                )}
+                <div>
+                  <label className="block text-yellow-500 font-semibold mb-2">Deadline</label>
+                  <input
+                    type="date"
+                    value={taskFormData.deadline}
+                    onChange={(e) => setTaskFormData({ ...taskFormData, deadline: e.target.value })}
+                    className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
+                  />
+                </div>
 
                 <div>
                   <label className="block text-yellow-500 font-semibold mb-2">Status</label>

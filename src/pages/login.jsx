@@ -41,10 +41,9 @@ const App = () => {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-amber-100 flex items-center justify-center">
-        {/* <div className="text-center">
-          <RefreshCw className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" />
+        <div className="text-center">
           <p className="text-gray-600">Loading...</p>
-        </div> */}
+        </div>
       </div>
     );
   }
@@ -122,25 +121,25 @@ const Login = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-900 via-gray-900 to-yellow-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-500 via-gray-800 to-yellow-700 flex items-center justify-center p-4">
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-yellow-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse"></div>
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-yellow-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse"></div>
       </div>
 
       <div className="relative w-full max-w-md">
-        <div className="bg-black bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-2xl border border-yellow-500 border-opacity-20 p-8">
+        <div className="bg-white bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-2xl border-opacity-20 p-8">
           <div className="text-center mb-8">
-            <div className="w-30 h-30 bg-white rounded-full flex items-center justify-center shadow mb-4 mx-auto">
+            <div className="w-40 h-40 flex items-center justify-center mb-0 mx-auto">
               <img
                 src={myLogo}
-                alt="Logo"
-                className="w-22 h-22 object-contain"
+                alt="Company Logo"
+                className="w-34 h-34 object-contain"
               />
             </div>
 
-            <h2 className="text-3xl font-bold text-yellow-400 mb-2">Intern Portal</h2>
-            <p className="text-gray-400 text-sm">Sign in to access your dashboard</p>
+            <h2 className="text-3xl font-bold text-black-400 mb-2">Intern Portal</h2>
+            <p className="text-gray-500 text-sm">Sign in to access your dashboard</p>
           </div>
 
           {error && (
@@ -152,10 +151,10 @@ const Login = ({ onLoginSuccess }) => {
 
           <div className="space-y-6">
             <div className="relative">
-              <label className="block text-yellow-400 text-sm font-medium mb-2">Email</label>
+              <label className="block text-black-400 text-sm font-medium mb-2">Email</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <User className={`w-5 h-5 transition-colors ${focusedField === 'email' ? 'text-yellow-400' : 'text-yellow-500'}`} />
+                   <User className={`w-5 h-5 transition-colors ${focusedField === 'password' ? 'text-yellow-400' : 'text-yellow-500'}`} />
                 </div>
                 <input
                   type="email"
@@ -164,7 +163,7 @@ const Login = ({ onLoginSuccess }) => {
                   onFocus={() => setFocusedField('email')}
                   onBlur={() => setFocusedField(null)}
                   onKeyPress={handleKeyPress}
-                  className="w-full pl-12 pr-4 py-3 bg-gray-900 border-2 border-yellow-700 rounded-lg text-white placeholder-white-500 focus:border-yellow-500 focus:outline-none transition-all duration-300"
+                  className="w-full pl-12 pr-4 py-3 bg-gray-900 border-2 rounded-lg text-white placeholder-gray-400 focus:border-yellow-500 focus:outline-none transition-all duration-300"
                   placeholder="Enter your email"
                   disabled={loading}
                 />
@@ -172,7 +171,7 @@ const Login = ({ onLoginSuccess }) => {
             </div>
 
             <div className="relative">
-              <label className="block text-yellow-400 text-sm font-medium mb-2">Password</label>
+              <label className="block text-black-400 text-sm font-medium mb-2">Password</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <Lock className={`w-5 h-5 transition-colors ${focusedField === 'password' ? 'text-yellow-400' : 'text-yellow-500'}`} />
@@ -184,7 +183,7 @@ const Login = ({ onLoginSuccess }) => {
                   onFocus={() => setFocusedField('password')}
                   onBlur={() => setFocusedField(null)}
                   onKeyPress={handleKeyPress}
-                  className="w-full pl-12 pr-4 py-3 bg-gray-900 border-2 border-yellow-700 rounded-lg text-white placeholder-white-500 focus:border-yellow-500 focus:outline-none transition-all duration-300"
+                  className="w-full pl-12 pr-4 py-3 bg-gray-900 border-2 rounded-lg text-white placeholder-gray-400 focus:border-yellow-500 focus:outline-none transition-all duration-300"
                   placeholder="Enter your password"
                   disabled={loading}
                 />
@@ -212,6 +211,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
   const [tasks, setTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [newStatus, setNewStatus] = useState("");
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
@@ -241,12 +241,6 @@ const Dashboard = ({ currentUser, onLogout }) => {
       color: "bg-green-100 text-green-800 border-green-300",
       icon: CheckCircle,
       iconColor: "text-green-600"
-    },
-    "Blocked": {
-      label: "Started but Not Completed",
-      color: "bg-red-100 text-red-800 border-red-300",
-      icon: XCircle,
-      iconColor: "text-red-600"
     }
   };
 
@@ -323,7 +317,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
   };
 
   const saveStatusUpdate = async () => {
-    if ((newStatus === 'Blocked' || newStatus === 'In Progress') && !reason.trim()) {
+    if ((newStatus === 'In Progress') && !reason.trim()) {
       alert("Please provide a reason for this status");
       return;
     }
@@ -332,9 +326,10 @@ const Dashboard = ({ currentUser, onLogout }) => {
     setError("");
 
     try {
-      await updateTaskInAPI(selectedTask._id || selectedTask.id, newStatus, reason);
+      const updatedTask = await updateTaskInAPI(selectedTask._id || selectedTask.id, newStatus, reason);
 
-      setTasks(tasks.map(task =>
+      // Update the task in the local state with the response from the server
+      setTasks(prevTasks => prevTasks.map(task =>
         (task._id || task.id) === (selectedTask._id || selectedTask.id)
           ? { ...task, status: newStatus, reason: newStatus === 'Completed' ? '' : reason }
           : task
@@ -343,6 +338,11 @@ const Dashboard = ({ currentUser, onLogout }) => {
       setShowModal(false);
       setSelectedTask(null);
       setReason("");
+
+      // Refresh tasks from server to ensure consistency
+      if (currentUser?.internId) {
+        await fetchTasks(currentUser.internId);
+      }
     } catch (err) {
       setError(err.message);
       alert(`Error: ${err.message}`);
@@ -354,12 +354,6 @@ const Dashboard = ({ currentUser, onLogout }) => {
   const StatusIcon = ({ status }) => {
     const Icon = statusConfig[status]?.icon || Clock;
     return <Icon className={`w-5 h-5 ${statusConfig[status]?.iconColor || 'text-gray-600'}`} />;
-  };
-
-  const refreshTasks = () => {
-    if (currentUser?.internId) {
-      fetchTasks(currentUser.internId);
-    }
   };
 
   const formatDate = (dateString) => {
@@ -382,17 +376,9 @@ const Dashboard = ({ currentUser, onLogout }) => {
               <p className="text-gray-600 mt-1">Welcome, {currentUser?.name || currentUser?.email}</p>
             </div>
             <div className="flex gap-3">
-              {/* <button
-                onClick={refreshTasks}
-                disabled={loading}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
-              </button> */}
               <button
-                onClick={onLogout}
-                className="flex items-center gap-2 px-4 py-2 bg-[#000] text-yellow-400 rounded-lg hover:bg-red-700 transition-colors"
+                onClick={() => setShowLogoutConfirm(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-[#000] text-yellow-400 rounded-lg hover:bg-gray-800 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
                 Logout
@@ -410,7 +396,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           {Object.entries(statusConfig).map(([status, config]) => {
             const count = tasks.filter(t => t.status === status).length;
             return (
@@ -431,7 +417,6 @@ const Dashboard = ({ currentUser, onLogout }) => {
 
         {loading && tasks.length === 0 ? (
           <div className="text-center py-12">
-            {/* <RefreshCw className="w-12 h-12 text-indigo-600 animate-spin mx-auto mb-4" /> */}
             <p className="text-gray-600">Loading tasks...</p>
           </div>
         ) : tasks.length === 0 ? (
@@ -476,7 +461,6 @@ const Dashboard = ({ currentUser, onLogout }) => {
                         onClick={() => handleStatusUpdate(task)}
                         disabled={loading}
                         className="px-4 py-2 bg-[#ffbe01] text-black rounded-lg hover:bg-[#e0a800] transition-colors text-sm font-medium disabled:opacity-50"
-
                       >
                         Update Status
                       </button>
@@ -513,7 +497,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
               <select
                 value={newStatus}
                 onChange={(e) => setNewStatus(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500"
                 disabled={loading}
               >
                 {Object.entries(statusConfig).map(([status, config]) => (
@@ -522,16 +506,16 @@ const Dashboard = ({ currentUser, onLogout }) => {
               </select>
             </div>
 
-            {(newStatus === 'Blocked' || newStatus === 'In Progress' || newStatus === 'Pending') && (
+            {(newStatus === 'In Progress' || newStatus === 'Pending') && (
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Reason {newStatus === 'Blocked' ? '(Required)' : '(Optional)'}
+                  Reason {newStatus === 'In Progress' ? '(Required)' : '(Optional)'}
                 </label>
                 <textarea
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Explain the status or reason..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 h-24 resize-none"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 h-24 resize-none"
                   disabled={loading}
                 />
               </div>
@@ -543,14 +527,7 @@ const Dashboard = ({ currentUser, onLogout }) => {
                 disabled={loading}
                 className="flex-1 px-4 py-2 bg-[#ffbe01] text-black rounded-lg hover:bg-[#e0a800] transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                {loading ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save Update'
-                )}
+                {loading ? 'Saving...' : 'Save Update'}
               </button>
               <button
                 onClick={() => {
@@ -559,6 +536,39 @@ const Dashboard = ({ currentUser, onLogout }) => {
                 }}
                 disabled={loading}
                 className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors font-medium disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                <AlertCircle className="w-6 h-6 text-yellow-600" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-800">Confirm Logout</h2>
+            </div>
+
+            <p className="text-gray-600 mb-6">Are you sure you want to logout?</p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowLogoutConfirm(false);
+                  onLogout();
+                }}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium"
+              >
+                Yes, Logout
+              </button>
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors font-medium"
               >
                 Cancel
               </button>
