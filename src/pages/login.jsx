@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Lock, ArrowRight, AlertCircle, CheckCircle, Clock, XCircle, PlayCircle, Calendar, LogOut } from 'lucide-react';
-import myLogo from '../assets/Vsoft Logo.png';
+import { User, Lock, ArrowRight, AlertCircle, CheckCircle, Clock, PlayCircle, Calendar, LogOut, UserCircle } from 'lucide-react';
 
 const API_URL = 'https://internship-backend-upmj.onrender.com/api/interns';
 
@@ -63,13 +62,14 @@ const App = () => {
 const Login = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('intern');
   const [focusedField, setFocusedField] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async () => {
-    if (!email || !password) {
-      setError('Please enter both Email and Password');
+    if (!email || !password || !role) {
+      setError('Please fill in all fields');
       return;
     }
 
@@ -84,7 +84,8 @@ const Login = ({ onLoginSuccess }) => {
         },
         body: JSON.stringify({
           email: email.trim(),
-          password: password
+          password: password,
+          role: role
         }),
       });
 
@@ -99,8 +100,9 @@ const Login = ({ onLoginSuccess }) => {
         throw new Error(data.message || 'Invalid credentials');
       }
 
-      // Login successful
-      onLoginSuccess(data);
+      // Add role to user data
+      const userData = { ...data, role };
+      onLoginSuccess(userData);
 
     } catch (err) {
       if (err.message.includes('Failed to fetch')) {
@@ -131,11 +133,9 @@ const Login = ({ onLoginSuccess }) => {
         <div className="bg-white bg-opacity-80 backdrop-blur-lg rounded-2xl shadow-2xl border-opacity-20 p-8">
           <div className="text-center mb-8">
             <div className="w-40 h-40 flex items-center justify-center mb-0 mx-auto">
-              <img
-                src={myLogo}
-                alt="Company Logo"
-                className="w-34 h-34 object-contain"
-              />
+              <div className="w-34 h-34 bg-yellow-500 rounded-full flex items-center justify-center text-white font-bold text-4xl">
+                VS
+              </div>
             </div>
 
             <h2 className="text-3xl font-bold text-black-400 mb-2">Intern Portal</h2>
@@ -151,10 +151,35 @@ const Login = ({ onLoginSuccess }) => {
 
           <div className="space-y-6">
             <div className="relative">
+              <label className="block text-black-400 text-sm font-medium mb-2">Role</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <UserCircle className={`w-5 h-5 transition-colors ${focusedField === 'role' ? 'text-yellow-400' : 'text-yellow-500'}`} />
+                </div>
+                <select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  onFocus={() => setFocusedField('role')}
+                  onBlur={() => setFocusedField(null)}
+                  className="w-full pl-12 pr-4 py-3 bg-gray-900 border-2 rounded-lg text-white focus:border-yellow-500 focus:outline-none transition-all duration-300 appearance-none cursor-pointer"
+                  disabled={loading}
+                >
+                  <option value="intern">Intern</option>
+                  <option value="course_student">Course Student</option>
+                </select>
+                <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
+                  <svg className="w-4 h-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative">
               <label className="block text-black-400 text-sm font-medium mb-2">Email</label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                   <User className={`w-5 h-5 transition-colors ${focusedField === 'password' ? 'text-yellow-400' : 'text-yellow-500'}`} />
+                  <User className={`w-5 h-5 transition-colors ${focusedField === 'email' ? 'text-yellow-400' : 'text-yellow-500'}`} />
                 </div>
                 <input
                   type="email"
@@ -328,7 +353,6 @@ const Dashboard = ({ currentUser, onLogout }) => {
     try {
       const updatedTask = await updateTaskInAPI(selectedTask._id || selectedTask.id, newStatus, reason);
 
-      // Update the task in the local state with the response from the server
       setTasks(prevTasks => prevTasks.map(task =>
         (task._id || task.id) === (selectedTask._id || selectedTask.id)
           ? { ...task, status: newStatus, reason: newStatus === 'Completed' ? '' : reason }
@@ -339,7 +363,6 @@ const Dashboard = ({ currentUser, onLogout }) => {
       setSelectedTask(null);
       setReason("");
 
-      // Refresh tasks from server to ensure consistency
       if (currentUser?.internId) {
         await fetchTasks(currentUser.internId);
       }
@@ -366,6 +389,11 @@ const Dashboard = ({ currentUser, onLogout }) => {
     }
   };
 
+  const getRoleDisplay = (role) => {
+    if (role === 'course_student') return 'Course Student';
+    return 'Intern';
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 to-amber-100">
       <div className="bg-white shadow-md">
@@ -373,7 +401,14 @@ const Dashboard = ({ currentUser, onLogout }) => {
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold text-gray-800">Task Dashboard</h1>
-              <p className="text-gray-600 mt-1">Welcome, {currentUser?.name || currentUser?.email}</p>
+              <p className="text-gray-600 mt-1">
+                Welcome, {currentUser?.name || currentUser?.email}
+                {currentUser?.role && (
+                  <span className="ml-2 px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-sm font-medium">
+                    {getRoleDisplay(currentUser.role)}
+                  </span>
+                )}
+              </p>
             </div>
             <div className="flex gap-3">
               <button

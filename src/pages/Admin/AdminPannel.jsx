@@ -21,7 +21,8 @@ const InternAdminPortal = () => {
     password: '', 
     department: '', 
     startDate: '', 
-    status: 'Active' 
+    status: 'Active',
+    role: 'Intern' // New field
   });
   const [taskFormData, setTaskFormData] = useState({ 
     internId: '', 
@@ -64,7 +65,7 @@ const InternAdminPortal = () => {
 
   const handleAddIntern = () => {
     setEditingIntern(null);
-    setFormData({ name: '', email: '', password: '', department: '', startDate: '', status: 'Active' });
+    setFormData({ name: '', email: '', password: '', department: '', startDate: '', status: 'Active', role: 'Intern' });
     setShowPassword(false);
     setIsModalOpen(true);
   };
@@ -77,14 +78,15 @@ const InternAdminPortal = () => {
       password: '',
       department: intern.department,
       startDate: intern.startDate,
-      status: intern.status
+      status: intern.status,
+      role: intern.role || 'Intern' // Default to Intern if not set
     });
     setShowPassword(false);
     setIsModalOpen(true);
   };
 
   const handleDeleteIntern = async (id) => {
-    if (window.confirm('Are you sure you want to delete this intern?')) {
+    if (window.confirm('Are you sure you want to delete this person?')) {
       try {
         await axios.delete(`${API_URL}/${id}`);
         await fetchInterns();
@@ -92,7 +94,7 @@ const InternAdminPortal = () => {
         setError(null);
       } catch (err) {
         setError(err.response?.data?.error || err.message);
-        alert('Error deleting intern: ' + (err.response?.data?.error || err.message));
+        alert('Error deleting: ' + (err.response?.data?.error || err.message));
       }
     }
   };
@@ -104,26 +106,44 @@ const InternAdminPortal = () => {
     }
 
     if (!editingIntern && !formData.password) {
-      alert('Password is required for new interns');
+      alert('Password is required for new entries');
       return;
     }
 
     try {
+      const dataToSend = {
+        name: formData.name,
+        email: formData.email,
+        department: formData.department,
+        startDate: formData.startDate,
+        status: formData.status,
+        role: formData.role // Explicitly include role
+      };
+
       if (editingIntern) {
-        const updateData = { ...formData };
-        if (!updateData.password) {
-          delete updateData.password;
+        if (formData.password) {
+          dataToSend.password = formData.password;
         }
-        await axios.put(`${API_URL}/${editingIntern._id}`, updateData);
+        console.log('🔄 UPDATING Intern - Data being sent:', dataToSend);
+        console.log('🔄 Role value:', formData.role);
+        const response = await axios.put(`${API_URL}/${editingIntern._id}`, dataToSend);
+        console.log('✅ Server response:', response.data);
+        alert(`Updated! Role saved as: ${response.data.role}`);
       } else {
-        await axios.post(API_URL, formData);
+        dataToSend.password = formData.password;
+        console.log('➕ CREATING Intern - Data being sent:', dataToSend);
+        console.log('➕ Role value:', formData.role);
+        const response = await axios.post(API_URL, dataToSend);
+        console.log('✅ Server response:', response.data);
+        alert(`Created! Role saved as: ${response.data.role}`);
       }
       await fetchInterns();
       setIsModalOpen(false);
       setError(null);
     } catch (err) {
       setError(err.response?.data?.error || err.message);
-      alert('Error saving intern: ' + (err.response?.data?.error || err.message));
+      alert('Error saving: ' + (err.response?.data?.error || err.message));
+      console.error('❌ Full error:', err.response?.data);
     }
   };
 
@@ -185,45 +205,39 @@ const InternAdminPortal = () => {
 
   const getInternName = (internId) => {
     if (!internId) return 'Unknown';
-
-    // Handle if internId is an object (populated)
     if (typeof internId === 'object' && internId.name) {
       return internId.name;
     }
-
-    // Handle if internId is a string (not populated)
     const intern = interns.find(i => i._id === internId);
     return intern ? intern.name : 'Unknown';
   };
 
   const exportToExcel = () => {
-    // Get intern details for each task
     const getInternDetails = (internId) => {
-      if (!internId) return { name: 'Unknown', department: 'N/A', startDate: 'N/A' };
+      if (!internId) return { name: 'Unknown', department: 'N/A', startDate: 'N/A', role: 'N/A' };
 
-      // Handle if internId is an object (populated)
       if (typeof internId === 'object' && internId.name) {
         return {
           name: internId.name,
           department: internId.department || 'N/A',
-          startDate: internId.startDate || 'N/A'
+          startDate: internId.startDate || 'N/A',
+          role: internId.role || 'N/A'
         };
       }
 
-      // Handle if internId is a string (not populated)
       const intern = interns.find(i => i._id === internId);
       if (intern) {
         return {
           name: intern.name,
           department: intern.department,
-          startDate: intern.startDate
+          startDate: intern.startDate,
+          role: intern.role || 'N/A'
         };
       }
 
-      return { name: 'Unknown', department: 'N/A', startDate: 'N/A' };
+      return { name: 'Unknown', department: 'N/A', startDate: 'N/A', role: 'N/A' };
     };
 
-    // Prepare comprehensive data for Excel export
     const excelData = tasks.map(task => {
       const internDetails = getInternDetails(task.internId);
       const createdAt = task.createdAt ? new Date(task.createdAt) : null;
@@ -236,9 +250,10 @@ const InternAdminPortal = () => {
         'Task Description': task.description,
         'Current Status': task.status,
         'Status Reason': task.reason || 'N/A',
-        'Intern Name': internDetails.name,
-        'Intern Department': internDetails.department,
-        'Intern Start Date': internDetails.startDate,
+        'Assigned To': internDetails.name,
+        'Role': internDetails.role,
+        'Department': internDetails.department,
+        'Start Date': internDetails.startDate,
         'Task Deadline': deadline ? deadline.toLocaleDateString() : 'No deadline',
         'Days Until Deadline': deadline ? Math.ceil((deadline - new Date()) / (1000 * 60 * 60 * 24)) : 'N/A',
         'Task Created': createdAt ? createdAt.toLocaleDateString() + ' ' + createdAt.toLocaleTimeString() : 'N/A',
@@ -250,38 +265,21 @@ const InternAdminPortal = () => {
       };
     });
 
-    // Sort data by creation date (most recent first)
     excelData.sort((a, b) => {
       const dateA = a['Task Created'] !== 'N/A' ? new Date(a['Task Created']) : new Date(0);
       const dateB = b['Task Created'] !== 'N/A' ? new Date(b['Task Created']) : new Date(0);
       return dateB - dateA;
     });
 
-    // Create worksheet
     const worksheet = XLSX.utils.json_to_sheet(excelData);
 
-    // Set column widths for better readability
     const columnWidths = [
-      { wch: 25 }, // Task ID
-      { wch: 30 }, // Task Title
-      { wch: 40 }, // Task Description
-      { wch: 15 }, // Current Status
-      { wch: 25 }, // Status Reason
-      { wch: 20 }, // Intern Name
-      { wch: 20 }, // Intern Department
-      { wch: 15 }, // Intern Start Date
-      { wch: 15 }, // Task Deadline
-      { wch: 12 }, // Days Until Deadline
-      { wch: 20 }, // Task Created
-      { wch: 20 }, // Last Updated
-      { wch: 12 }, // Days Since Creation
-      { wch: 12 }, // Task Age (Days)
-      { wch: 15 }, // Status Progress
-      { wch: 12 }  // Priority Level
+      { wch: 25 }, { wch: 30 }, { wch: 40 }, { wch: 15 }, { wch: 25 }, { wch: 20 }, 
+      { wch: 12 }, { wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 20 }, 
+      { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }
     ];
     worksheet['!cols'] = columnWidths;
 
-    // Add summary sheet with statistics
     const summaryData = [
       { 'Metric': 'Total Tasks', 'Value': tasks.length },
       { 'Metric': 'Completed Tasks', 'Value': tasks.filter(t => t.status === 'Completed').length },
@@ -289,31 +287,25 @@ const InternAdminPortal = () => {
       { 'Metric': 'Pending Tasks', 'Value': tasks.filter(t => t.status === 'Pending').length },
       { 'Metric': 'Blocked Tasks', 'Value': tasks.filter(t => t.status === 'Blocked').length },
       { 'Metric': 'Acknowledge Tasks', 'Value': tasks.filter(t => t.status === 'Acknowledge').length },
-      { 'Metric': 'Active Interns', 'Value': interns.filter(i => i.status === 'Active').length },
-      { 'Metric': 'Total Interns', 'Value': interns.length },
+      { 'Metric': 'Active Interns', 'Value': interns.filter(i => i.status === 'Active' && i.role === 'Intern').length },
+      { 'Metric': 'Active Students', 'Value': interns.filter(i => i.status === 'Active' && i.role === 'Student').length },
+      { 'Metric': 'Total People', 'Value': interns.length },
       { 'Metric': 'Export Date', 'Value': new Date().toLocaleString() }
     ];
 
     const summaryWorksheet = XLSX.utils.json_to_sheet(summaryData);
-    summaryWorksheet['!cols'] = [
-      { wch: 25 }, // Metric
-      { wch: 15 }  // Value
-    ];
+    summaryWorksheet['!cols'] = [{ wch: 25 }, { wch: 15 }];
 
-    // Create workbook and add worksheets
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Task History Details');
     XLSX.utils.book_append_sheet(workbook, summaryWorksheet, 'Summary Statistics');
 
-    // Generate filename with current date and time
     const now = new Date();
-    const fileName = `Intern_Task_History_${now.toISOString().split('T')[0]}_${now.getHours()}${now.getMinutes()}.xlsx`;
+    const fileName = `Task_History_${now.toISOString().split('T')[0]}_${now.getHours()}${now.getMinutes()}.xlsx`;
 
-    // Save file
     XLSX.writeFile(workbook, fileName);
   };
 
-  // Helper function to get status progress indicator
   const getStatusProgress = (status) => {
     const progressMap = {
       'Acknowledge': '0% - Not Started',
@@ -325,7 +317,6 @@ const InternAdminPortal = () => {
     return progressMap[status] || 'Unknown';
   };
 
-  // Helper function to calculate priority based on deadline and status
   const calculatePriority = (deadline, status) => {
     if (status === 'Completed') return 'Completed';
     if (!deadline) return 'No Deadline';
@@ -343,8 +334,8 @@ const InternAdminPortal = () => {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-lg shadow-2xl p-6 mb-6">
-          <h1 className="text-4xl font-bold text-black">Intern Portal Admin</h1>
-          <p className="text-gray-900 mt-2">Manage interns and assign tasks</p>
+          <h1 className="text-4xl font-bold text-black">Management Portal</h1>
+          <p className="text-gray-900 mt-2">Manage interns, students and assign tasks</p>
         </div>
 
         {/* Error Message */}
@@ -360,7 +351,7 @@ const InternAdminPortal = () => {
         {/* Loading State */}
         {loading && (
           <div className="bg-gray-900 rounded-lg shadow-2xl p-6 mb-6 text-center">
-            <p className="text-yellow-500 text-xl">Loading interns...</p>
+            <p className="text-yellow-500 text-xl">Loading...</p>
           </div>
         )}
 
@@ -375,7 +366,7 @@ const InternAdminPortal = () => {
             }`}
           >
             <UserPlus size={20} />
-            Interns
+            People
           </button>
           <button
             onClick={() => setActiveTab('tasks')}
@@ -394,19 +385,19 @@ const InternAdminPortal = () => {
         {activeTab === 'interns' && (
           <div className="bg-gray-900 rounded-lg shadow-2xl p-6">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-yellow-500">Intern Management</h2>
+              <h2 className="text-2xl font-bold text-yellow-500">People Management</h2>
               <button
                 onClick={handleAddIntern}
                 className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded-lg font-semibold transition-all"
               >
                 <Plus size={20} />
-                Add Intern
+                Add Person
               </button>
             </div>
 
             {!loading && interns.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-400 text-lg">No interns found. Add your first intern!</p>
+                <p className="text-gray-400 text-lg">No people found. Add your first person!</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -415,6 +406,7 @@ const InternAdminPortal = () => {
                     <tr className="border-b-2 border-yellow-500">
                       <th className="text-left py-3 px-4 text-yellow-500 font-semibold">Name</th>
                       <th className="text-left py-3 px-4 text-yellow-500 font-semibold">Email</th>
+                      <th className="text-left py-3 px-4 text-yellow-500 font-semibold">Role</th>
                       <th className="text-left py-3 px-4 text-yellow-500 font-semibold">Department</th>
                       <th className="text-left py-3 px-4 text-yellow-500 font-semibold">Start Date</th>
                       <th className="text-left py-3 px-4 text-yellow-500 font-semibold">Status</th>
@@ -426,6 +418,13 @@ const InternAdminPortal = () => {
                       <tr key={intern._id} className="border-b border-gray-700 hover:bg-gray-800 transition-colors">
                         <td className="py-3 px-4 text-gray-300">{intern.name}</td>
                         <td className="py-3 px-4 text-gray-300">{intern.email}</td>
+                        <td className="py-3 px-4">
+                          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                            intern.role === 'Intern' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white'
+                          }`}>
+                            {intern.role || 'Intern'}
+                          </span>
+                        </td>
                         <td className="py-3 px-4 text-gray-300">{intern.department}</td>
                         <td className="py-3 px-4 text-gray-300">{intern.startDate}</td>
                         <td className="py-3 px-4">
@@ -543,10 +542,10 @@ const InternAdminPortal = () => {
         {/* Intern Modal */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
-            <div className="bg-gray-900 rounded-lg shadow-2xl max-w-md w-full p-6 border-2 border-yellow-500">
+            <div className="bg-gray-900 rounded-lg shadow-2xl max-w-md w-full p-6 border-2 border-yellow-500 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-2xl font-bold text-yellow-500">
-                  {editingIntern ? 'Edit Intern' : 'Add New Intern'}
+                  {editingIntern ? 'Edit Person' : 'Add New Person'}
                 </h3>
                 <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-yellow-500">
                   <X size={24} />
@@ -555,13 +554,25 @@ const InternAdminPortal = () => {
 
               <div className="space-y-4">
                 <div>
+                  <label className="block text-yellow-500 font-semibold mb-2">Role</label>
+                  <select
+                    value={formData.role}
+                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
+                  >
+                    <option value="Intern">Intern</option>
+                    <option value="Student">Student</option>
+                  </select>
+                </div>
+
+                <div>
                   <label className="block text-yellow-500 font-semibold mb-2">Name</label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
-                    placeholder="Enter intern name"
+                    placeholder="Enter name"
                   />
                 </div>
 
@@ -636,7 +647,7 @@ const InternAdminPortal = () => {
                   className="w-full flex items-center justify-center gap-2 bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-3 rounded-lg font-semibold transition-all"
                 >
                   <Save size={20} />
-                  {editingIntern ? 'Update Intern' : 'Add Intern'}
+                  {editingIntern ? 'Update Person' : 'Add Person'}
                 </button>
               </div>
             </div>
@@ -646,7 +657,7 @@ const InternAdminPortal = () => {
         {/* Task Modal */}
         {isTaskModalOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50">
-            <div className="bg-gray-900 rounded-lg shadow-2xl max-w-md w-full p-6 border-2 border-yellow-500">
+            <div className="bg-gray-900 rounded-lg shadow-2xl max-w-md w-full p-6 border-2 border-yellow-500 max-h-[90vh] overflow-y-auto">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-2xl font-bold text-yellow-500">
                   {editingTask ? 'Edit Task' : 'Assign New Task'}
@@ -657,17 +668,18 @@ const InternAdminPortal = () => {
               </div>
 
               <div className="space-y-4">
-                {/* Always show editable fields for both creating and editing tasks */}
                 <div>
-                  <label className="block text-yellow-500 font-semibold mb-2">Assign to Intern</label>
+                  <label className="block text-yellow-500 font-semibold mb-2">Assign to</label>
                   <select
                     value={taskFormData.internId}
                     onChange={(e) => setTaskFormData({ ...taskFormData, internId: e.target.value })}
                     className="w-full px-4 py-2 bg-gray-800 border border-yellow-600 rounded-lg text-gray-300 focus:outline-none focus:border-yellow-500"
                   >
-                    <option value="">Select an intern</option>
+                    <option value="">Select a person</option>
                     {interns.map((intern) => (
-                      <option key={intern._id} value={intern._id}>{intern.name}</option>
+                      <option key={intern._id} value={intern._id}>
+                        {intern.name} ({intern.role || 'Intern'})
+                      </option>
                     ))}
                   </select>
                 </div>
